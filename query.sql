@@ -3,7 +3,7 @@ SELECT
     CASE 
         WHEN COALESCE(TSR_FACT_LINKED_KEYS_UITI, '') LIKE '% %' 
             THEN 'UITI linked to more than one UITI' 
-        WHEN TSR_FACT_LINKED_KEYS_UITI IS NULL 
+        WHEN COALESCE(TSR_FACT_LINKED_KEYS_UITI, '') IS NULL 
             THEN 'NO UITI LINKED. Should not be submitted thru REGHUB' 
         ELSE 'ONE to ONE UITI - UITI linkage' 
     END AS UITI_LINKAGE_CATEG
@@ -20,14 +20,14 @@ FROM (
     LEFT JOIN (
         SELECT 
             rpt_uti,
-            TRIM(CONCAT_WS(' ', COLLECT_LIST(DISTINCT keys_uti))) AS keys_uti, 
-            TRIM(CONCAT_WS(' ', COLLECT_LIST(DISTINCT keys_src_sys))) AS keys_src_sys, 
-            TRIM(CONCAT_WS(' ', COLLECT_LIST(DISTINCT msghdr_trd_clsftn))) AS alpha_trade_classfctn_ind,
+            CONCAT_WS(' ', COLLECT_LIST(DISTINCT keys_uti)) AS keys_uti, 
+            CONCAT_WS(' ', COLLECT_LIST(DISTINCT keys_src_sys)) AS keys_src_sys, 
+            CONCAT_WS(' ', COLLECT_LIST(DISTINCT msghdr_trd_clsftn)) AS alpha_trade_classfctn_ind,
             ts_pty1,
             ts_pty2
         FROM (
             SELECT DISTINCT
-                TRIM(
+                LTRIM(
                     CASE 
                         WHEN INSTR(keys_uti, keys_uti_prefix) = 1 THEN keys_uti
                         WHEN INSTR(keys_uti, amc_firm_lgl_enty_id) = 1 THEN keys_uti
@@ -53,7 +53,7 @@ FROM (
         ) a 
         GROUP BY rpt_uti, ts_pty1, ts_pty2
     ) TS_FACT
-    ON TRIM(B.UITI) = TRIM(TS_FACT.rpt_uti)
+    ON B.UITI = TS_FACT.rpt_uti
     AND B.reporting_counterparty_id = TS_FACT.ts_pty1
     AND B.counterparty_2 = TS_FACT.ts_pty2
 ) breaks;
