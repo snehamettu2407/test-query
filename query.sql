@@ -1,29 +1,59 @@
 SELECT 
-    rpt_uti,
-    CONCAT_WS(' ', COLLECT_LIST(DISTINCT keys_uti)) AS keys_uti,
-    CONCAT_WS(' ', COLLECT_LIST(DISTINCT keys_src_sys)) AS keys_src_sys,
-    CONCAT_WS(' ', COLLECT_LIST(DISTINCT msghdr_trd_clsftn)) AS alpha_trade_classfctn_ind,
-    ts_pty1,
-    ts_pty2
-FROM 
-(
-    SELECT DISTINCT 
-        ltrim(IF(instr(keys_uti, keys_uti_prefix) = 1
-            OR instr(keys_uti, amc_firm_lgl_enty_id) = 1
-            OR instr(keys_uti, amc_cpty_lgl_enty_id) = 1, keys_uti, 
-            keys_uti_prefix || keys_uti)) AS rpt_uti,
-        a.keys_uti,
-        keys_src_sys,
-        msghdr_trd_clsftn,
-        CASE 
-            WHEN keys_flow LIKE '%Citix%' THEN src_trd_pty1_id 
-            ELSE src_trd_pty2_id 
-        END AS ts_pty1,
-        CASE 
-            WHEN keys_flow LIKE '%Citix%' THEN src_trd_pty2_id 
-            ELSE src_trd_pty1_id 
-        END AS ts_pty2
-    FROM table_name
-) grouped_data
-GROUP BY rpt_uti, ts_pty1, ts_pty2;
-
+    breaks.*,
+    CASE 
+        WHEN TSR_FACT_LINKED_KEYS_UTII LIKE '% %' 
+            THEN 'UTII linked to more than one UTII' 
+        WHEN TSR_FACT_LINKED_KEYS_UTII IS NULL 
+            THEN 'NO UTII LINKED. Should not be submitted thru REGHUB' 
+        ELSE 'ONE to ONE UTII - UTII linkage' 
+    END AS UTII_LINKAGE_CATEG
+FROM (
+    SELECT 
+        B.*, 
+        TS_FACT.ts_pty1,
+        TS_FACT.ts_pty2,
+        TS_FACT.keys_uti AS TSR_FACT_LINKED_KEYS_UTII,
+        TS_FACT.keys_src_sys AS ts_src_sys,
+        TS_FACT.alpha_trade_classfctn_ind AS alpha_trade_classfctn_ind
+    FROM 
+        GFOLYREG_WORK.APP_REGHUB_ESMA_BREAKS_CITI_SUBMISSION B
+    LEFT JOIN (
+        SELECT 
+            rpt_uti,
+            STRING_AGG(DISTINCT keys_uti, ' ') AS keys_uti, 
+            STRING_AGG(DISTINCT keys_src_sys, ' ') AS keys_src_sys, 
+            STRING_AGG(msghdr_trd_clsftn, ' ') AS alpha_trade_classfctn_ind,
+            ts_pty1,
+            ts_pty2
+        FROM (
+            SELECT DISTINCT
+                LTRIM(
+                    CASE 
+                        WHEN INSTR(keys_uti, keys_uti_prefix) = 1 THEN keys_uti
+                        WHEN INSTR(keys_uti, amc_firm_lgl_enty_id) = 1 THEN keys_uti
+                        WHEN INSTR(keys_uti, amc_cpty_lgl_enty_id) = 1 THEN keys_uti
+                        ELSE CONCAT(keys_uti_prefix, '|', keys_uti) 
+                    END
+                ) AS rpt_uti,
+                a.keys_uti,
+                keys_src_sys,
+                msghdr_trd_clsftn,
+                CASE 
+                    WHEN keys_flow LIKE '%Citix%' THEN src_trd_pty1_id 
+                    ELSE src_trd_pty2_id 
+                END AS ts_pty1,
+                CASE 
+                    WHEN keys_flow LIKE '%Citix%' THEN src_trd_pty2_id 
+                    ELSE src_trd_pty1_id 
+                END AS ts_pty2
+            FROM 
+                GFOLYREG_MANAGED.ESMA_TS_FACT_DATA A
+            WHERE 
+                A.state_status IN ('ACK', 'REPORTED')
+        ) a 
+        GROUP BY rpt_uti, ts_pty1, ts_pty2
+    ) TS_FACT
+    ON B.UTII = TS_FACT.rpt_uti
+    AND B.reporting_counterparty_id = TS_FACT.ts_pty1
+    AND B.counterparty_2 = TS_FACT.ts_pty2
+) breaks;
