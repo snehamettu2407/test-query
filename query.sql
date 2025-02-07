@@ -1,18 +1,18 @@
 SELECT 
     breaks.*,
     CASE 
-        WHEN TSR_FACT_LINKED_KEYS_UTII LIKE '% %' 
-            THEN 'UTII linked to more than one UTII' 
-        WHEN TSR_FACT_LINKED_KEYS_UTII IS NULL 
-            THEN 'NO UTII LINKED. Should not be submitted thru REGHUB' 
-        ELSE 'ONE to ONE UTII - UTII linkage' 
-    END AS UTII_LINKAGE_CATEG
+        WHEN TSR_FACT_LINKED_KEYS_UITI LIKE '% %' 
+            THEN 'UITI linked to more than one UITI' 
+        WHEN TSR_FACT_LINKED_KEYS_UITI IS NULL 
+            THEN 'NO UITI LINKED. Should not be submitted thru REGHUB' 
+        ELSE 'ONE to ONE UITI - UITI linkage' 
+    END AS UITI_LINKAGE_CATEG
 FROM (
     SELECT 
         B.*, 
         TS_FACT.ts_pty1,
         TS_FACT.ts_pty2,
-        TS_FACT.keys_uti AS TSR_FACT_LINKED_KEYS_UTII,
+        TS_FACT.keys_uti AS TSR_FACT_LINKED_KEYS_UITI,
         TS_FACT.keys_src_sys AS ts_src_sys,
         TS_FACT.alpha_trade_classfctn_ind AS alpha_trade_classfctn_ind
     FROM 
@@ -20,9 +20,9 @@ FROM (
     LEFT JOIN (
         SELECT 
             rpt_uti,
-            CONCAT_WS(' ', COLLECT_SET(keys_uti)) AS keys_uti, 
-            CONCAT_WS(' ', COLLECT_SET(keys_src_sys)) AS keys_src_sys, 
-            CONCAT_WS(' ', COLLECT_SET(msghdr_trd_clsftn)) AS alpha_trade_classfctn_ind,
+            CONCAT_WS(' ', COLLECT_LIST(DISTINCT keys_uti)) AS keys_uti, 
+            CONCAT_WS(' ', COLLECT_LIST(DISTINCT keys_src_sys)) AS keys_src_sys, 
+            CONCAT_WS(' ', COLLECT_LIST(DISTINCT msghdr_trd_clsftn)) AS alpha_trade_classfctn_ind,
             ts_pty1,
             ts_pty2
         FROM (
@@ -53,7 +53,7 @@ FROM (
         ) a 
         GROUP BY rpt_uti, ts_pty1, ts_pty2
     ) TS_FACT
-    ON B.UTII = TS_FACT.rpt_uti
+    ON B.UITI = TS_FACT.rpt_uti
     AND B.reporting_counterparty_id = TS_FACT.ts_pty1
     AND B.counterparty_2 = TS_FACT.ts_pty2
 ) breaks;
