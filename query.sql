@@ -20,9 +20,9 @@ FROM (
     LEFT JOIN (
         SELECT 
             rpt_uti,
-            STRING_AGG(DISTINCT keys_uti, ' ') AS keys_uti, 
-            STRING_AGG(DISTINCT keys_src_sys, ' ') AS keys_src_sys, 
-            STRING_AGG(msghdr_trd_clsftn, ' ') AS alpha_trade_classfctn_ind,
+            CONCAT_WS(' ', COLLECT_SET(keys_uti)) AS keys_uti, 
+            CONCAT_WS(' ', COLLECT_SET(keys_src_sys)) AS keys_src_sys, 
+            CONCAT_WS(' ', COLLECT_SET(msghdr_trd_clsftn)) AS alpha_trade_classfctn_ind,
             ts_pty1,
             ts_pty2
         FROM (
